@@ -21,56 +21,121 @@ namespace Spproject
         public ICommand ResumeCommand { get; set; }
         public ICommand AbortCommand { get; set; }
         public ICommand CopyCommand { get; set; }
-
+        public CancellationTokenSource cancelEvent { get; set; }
         //
         private int currentProgress;
+        private bool current;
+        private CancellationTokenSource cts;
 
         public MainViewModel()
         {
             FromCommand = new RelayCommand(Fromfile);
             ToCommand = new RelayCommand(Tofile);
             CopyCommand = new RelayCommand(Copyexecute);
+            cancelEvent = new CancellationTokenSource();
+            cts = new CancellationTokenSource();
+            SuspendCommand = new RelayCommand(Suspend)
+;            ResumeCommand = new RelayCommand(Resume);
+;            AbortCommand = new RelayCommand(Abort);
         }
+
+        private void Resume(object? obj)
+        {
+            current = true;
+        }
+
+        private void Suspend(object? obj)
+        {
+            current = false;
+        }
+
+        private void Abort(object? obj)
+        {
+            cancelEvent.Cancel();
+        }
+
+
+
+
 
         private void Copyexecute(object? obj)
         {
             try
             {
-                Thread thread = new Thread(() => {
-                    var fr = File.ReadAllText(Fromtext);
-                   
-                    File.WriteAllText(Totext, fr);
-                    
-                   for (int i = 0; i <100;i++)
+                Thread thread = new Thread(() =>
+                {
+
+                  
+                        var fr = File.ReadAllText(Fromtext);
+                    MessageBox.Show($"{Fromtext} readed ");
+                    for (int i = 0; i < 20; i++)
                     {
                         CurrentProgress += 1;
                         Thread.Sleep(50);
-                       
+                    }
+                    Thread.Sleep(1500);
+
+                    var result = MessageBox.Show("Do you want abort", "confirm", MessageBoxButton.YesNo);
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        Resume(result);
+                    }
+
+                    if (cancelEvent.IsCancellationRequested)
+                    {
+                        Thread.Sleep(500);
+                        MessageBox.Show("Aborted , not copied");
+                        return;
+                    }
+                    Thread.Sleep(1000);
+                    var result2 = MessageBox.Show("Do you want suspend", "confirm", MessageBoxButton.YesNo);
+                    if (result2 == MessageBoxResult.Yes)
+                    {
+                        Suspend(result2);
+                    }
+                    while (true)
+                    {
+                        if (current)
+                        {
+                            File.WriteAllText(Totext, fr);
+                            break;
+                        }
+
+                    }
+                   
+                  
+
+                    for (int i = 0; i < 100; i++)
+                    {
+                        CurrentProgress += 1;
+                        Thread.Sleep(50);
+
                     }
 
                     MessageBox.Show("Copied");
                     CurrentProgress = 0;
-                    Fromtext = string.Empty;    
-                    Totext = string.Empty;  
+                    Fromtext = string.Empty;
+                    Totext = string.Empty;
                 });
 
                 thread.Start();
-                 
+
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
-                 
+
             }
-            
-                                                                                                                                        
+
+
         }
+
         public int CurrentProgress
         {
             get { return this.currentProgress; }
             private set
             {
-                 currentProgress = value;   OnPropertyChanged( );
+                currentProgress = value; OnPropertyChanged();
             }
         }
 
@@ -121,7 +186,7 @@ namespace Spproject
             get { return fromtext; }
             set { fromtext = value; OnPropertyChanged(); }
         }
-                                                                                                                        
+
         public event PropertyChangedEventHandler? PropertyChanged;
         public void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
